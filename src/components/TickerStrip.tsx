@@ -2,10 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 
-type Document = Database['public']['Tables']['documents']['Row'];
+interface TickerDoc {
+  title: string;
+  urgency: string | null;
+  category: string | null;
+  state: string | null;
+  published_at: string | null;
+}
 
 export const TickerStrip: React.FC = () => {
-  const [docs, setDocs] = useState<Document[]>([]);
+  const [docs, setDocs] = useState<TickerDoc[]>([]);
 
   useEffect(() => {
     const fetchDocs = async () => {

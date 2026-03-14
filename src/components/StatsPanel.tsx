@@ -3,10 +3,15 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-type Document = Database['public']['Tables']['documents']['Row'];
+interface StatsDoc {
+  category: string | null;
+  urgency: string | null;
+  state: string | null;
+  impact_score: number | null;
+}
 
 export const StatsPanel: React.FC = () => {
-  const [docs, setDocs] = useState<Document[]>([]);
+  const [docs, setDocs] = useState<StatsDoc[]>([]);
 
   useEffect(() => {
     const fetchDocs = async () => {
