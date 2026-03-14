@@ -247,6 +247,72 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          court_order_flash: boolean | null
+          created_at: string | null
+          daily_cap: number | null
+          deadline_1d: boolean | null
+          deadline_30d: boolean | null
+          deadline_7d: boolean | null
+          email_enabled: boolean | null
+          id: string
+          liability_change_alert: boolean | null
+          new_law_alert: boolean | null
+          push_enabled: boolean | null
+          quiet_hours_end: string | null
+          quiet_hours_start: string | null
+          spike_alert: boolean | null
+          updated_at: string | null
+          urgency_threshold: string | null
+          user_id: string
+          weekly_digest: boolean | null
+          whatsapp_enabled: boolean | null
+        }
+        Insert: {
+          court_order_flash?: boolean | null
+          created_at?: string | null
+          daily_cap?: number | null
+          deadline_1d?: boolean | null
+          deadline_30d?: boolean | null
+          deadline_7d?: boolean | null
+          email_enabled?: boolean | null
+          id?: string
+          liability_change_alert?: boolean | null
+          new_law_alert?: boolean | null
+          push_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          spike_alert?: boolean | null
+          updated_at?: string | null
+          urgency_threshold?: string | null
+          user_id: string
+          weekly_digest?: boolean | null
+          whatsapp_enabled?: boolean | null
+        }
+        Update: {
+          court_order_flash?: boolean | null
+          created_at?: string | null
+          daily_cap?: number | null
+          deadline_1d?: boolean | null
+          deadline_30d?: boolean | null
+          deadline_7d?: boolean | null
+          email_enabled?: boolean | null
+          id?: string
+          liability_change_alert?: boolean | null
+          new_law_alert?: boolean | null
+          push_enabled?: boolean | null
+          quiet_hours_end?: string | null
+          quiet_hours_start?: string | null
+          spike_alert?: boolean | null
+          updated_at?: string | null
+          urgency_threshold?: string | null
+          user_id?: string
+          weekly_digest?: boolean | null
+          whatsapp_enabled?: boolean | null
+        }
+        Relationships: []
+      }
       user_alerts: {
         Row: {
           alert_type: string | null
