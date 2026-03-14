@@ -91,7 +91,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({ task, onDelete, onUpdate
           </span>
         )}
         {task.is_recurring && (
-          <RefreshCw className="h-2.5 w-2.5 text-accent" title={`Recurring: ${task.recurrence_pattern}`} />
+          <span title={`Recurring: ${task.recurrence_pattern}`}><RefreshCw className="h-2.5 w-2.5 text-accent" /></span>
         )}
         {task.evidence_urls && task.evidence_urls.length > 0 && (
           <span className="flex items-center gap-0.5 text-[9px] font-mono text-primary">
