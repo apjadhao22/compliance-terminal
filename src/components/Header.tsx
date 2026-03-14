@@ -3,7 +3,7 @@ import { useAuth, useRequireAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileText, Shield, Bell, Calculator, Map, Search, LayoutGrid,
-  LogOut, User, Menu
+  LogOut, User, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
