@@ -1,58 +1,97 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { Database } from '@/integrations/supabase/types';
+import { format } from 'date-fns';
 
 interface TickerDoc {
   title: string;
-  urgency: string | null;
-  category: string | null;
-  state: string | null;
+  source_name: string | null;
+  document_type: string | null;
   published_at: string | null;
+  is_amendment: boolean | null;
+  urgency: string | null;
 }
+
+const getDocTypeColor = (docType: string | null, isAmendment: boolean | null) => {
+  if (isAmendment) return 'text-destructive';
+  switch (docType) {
+    case 'act': return 'text-destructive';
+    case 'circular': case 'order': return 'text-warning';
+    case 'court_order': return 'text-terminal-cyan';
+    case 'directive': case 'notification':
+      return 'text-warning';
+    default: return 'text-primary';
+  }
+};
+
+const getDocTypeLabel = (docType: string | null, isAmendment: boolean | null) => {
+  if (isAmendment) return '🔴 AMENDMENT';
+  switch (docType) {
+    case 'court_order': return '⚖ COURT ORDER';
+    case 'act': return '📜 ACT';
+    case 'circular': return '📋 CIRCULAR';
+    case 'order': return '📋 ORDER';
+    case 'GR': return '📋 GR';
+    case 'notification': return '🔔 NOTIFICATION';
+    case 'gazette': return '📰 GAZETTE';
+    case 'rule': return '📐 RULE';
+    case 'directive': return '⚠ DIRECTIVE';
+    default: return docType?.toUpperCase() || '';
+  }
+};
 
 export const TickerStrip: React.FC = () => {
   const [docs, setDocs] = useState<TickerDoc[]>([]);
+  const [isPaused, setIsPaused] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const fetchDocs = async () => {
+    const { data } = await supabase
+      .from('documents')
+      .select('title, source_name, document_type, published_at, is_amendment, urgency')
+      .order('published_at', { ascending: false })
+      .limit(50);
+    if (data) setDocs(data);
+  };
 
   useEffect(() => {
-    const fetchDocs = async () => {
-      const { data } = await supabase
-        .from('documents')
-        .select('title, urgency, category, state, published_at')
-        .order('published_at', { ascending: false })
-        .limit(20);
-      if (data) setDocs(data);
-    };
     fetchDocs();
+    const interval = setInterval(fetchDocs, 5 * 60 * 1000); // 5 min refresh
+    return () => clearInterval(interval);
   }, []);
-
-  const getUrgencyColor = (urgency: string | null) => {
-    switch (urgency) {
-      case 'critical': return 'text-destructive glow-amber';
-      case 'high': return 'text-warning';
-      case 'medium': return 'text-terminal-cyan';
-      default: return 'text-terminal-dim';
-    }
-  };
 
   if (docs.length === 0) return null;
 
-  const tickerContent = docs.map((doc, i) => (
-    <span key={i} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
-      <span className={`text-xs font-mono uppercase font-bold ${getUrgencyColor(doc.urgency)}`}>
-        {doc.urgency === 'critical' ? '⚠' : '●'} {doc.category}
+  const tickerItems = docs.map((doc, i) => (
+    <span key={i} className="inline-flex items-center gap-2 mx-8 whitespace-nowrap">
+      <span className="text-[10px] font-mono text-terminal-dim">
+        {doc.source_name || 'GOV'}
+      </span>
+      <span className={`text-[10px] font-mono font-bold ${getDocTypeColor(doc.document_type, doc.is_amendment)}`}>
+        {getDocTypeLabel(doc.document_type, doc.is_amendment)}
       </span>
       <span className="text-xs font-mono text-foreground">{doc.title}</span>
-      <span className="text-xs font-mono text-terminal-dim">
-        [{doc.state?.replace('_', ' ').toUpperCase()}]
+      <span className="text-[10px] font-mono text-terminal-dim">
+        {doc.published_at ? format(new Date(doc.published_at), 'dd MMM') : ''}
       </span>
     </span>
   ));
 
   return (
-    <div className="w-full bg-secondary/50 border-b border-border overflow-hidden h-7 flex items-center">
-      <div className="animate-ticker flex">
-        {tickerContent}
-        {tickerContent}
+    <div
+      className="w-full bg-secondary/50 border-b border-border overflow-hidden h-7 flex items-center"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      <div
+        ref={containerRef}
+        className="flex"
+        style={{
+          animation: 'ticker-scroll 120s linear infinite',
+          animationPlayState: isPaused ? 'paused' : 'running',
+        }}
+      >
+        {tickerItems}
+        {tickerItems}
       </div>
     </div>
   );
