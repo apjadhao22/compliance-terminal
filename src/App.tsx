@@ -8,6 +8,7 @@ import Index from "./pages/Index.tsx";
 import LiabilityPage from "./pages/LiabilityPage.tsx";
 import KanbanPage from "./pages/KanbanPage.tsx";
 import MapPage from "./pages/MapPage.tsx";
+import SettingsPage from "./pages/SettingsPage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/liability" element={<LiabilityPage />} />
             <Route path="/kanban" element={<KanbanPage />} />
             <Route path="/map" element={<MapPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

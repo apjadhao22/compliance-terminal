@@ -3,9 +3,10 @@ import { useAuth, useRequireAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   FileText, Shield, Bell, Calculator, Map, Search, LayoutGrid,
-  LogOut, User, Zap
+  LogOut, User, Zap, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NotificationBell } from '@/components/NotificationBell';
 
 const NAV_ITEMS = [
   { key: 'L', label: 'Labour Feed', path: '/', icon: FileText },
@@ -14,6 +15,7 @@ const NAV_ITEMS = [
   { key: 'C', label: 'Liability', path: '/liability', icon: Calculator, protected: true },
   { key: 'M', label: 'Map', path: '/map', icon: Map },
   { key: 'K', label: 'Kanban', path: '/kanban', icon: LayoutGrid, protected: true },
+  { key: 'S', label: 'Settings', path: '/settings', icon: Settings, protected: true },
 ];
 
 export const Header: React.FC = () => {
@@ -49,7 +51,9 @@ export const Header: React.FC = () => {
               key={item.key}
               onClick={() => handleNav(item)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono rounded transition-colors ${
-                location.pathname === item.path && item.label !== 'Labour Feed' && item.label !== 'Tax'
+                location.pathname === item.path && item.path !== '/'
+                  ? 'bg-primary/10 text-primary'
+                  : location.pathname === '/' && item.path === '/' && item.label === 'Labour Feed'
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
               }`}
@@ -75,6 +79,7 @@ export const Header: React.FC = () => {
           <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
             <Search className="h-4 w-4" />
           </button>
+          <NotificationBell />
           {user ? (
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono text-terminal-cyan hidden sm:inline">
