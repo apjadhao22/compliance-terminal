@@ -63,6 +63,15 @@ export const Header: React.FC = () => {
 
         {/* Right side */}
         <div className="flex items-center gap-2">
+          {/* Liability CTA */}
+          <button
+            onClick={() => requireAuth(() => navigate('/liability'))}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-bold rounded bg-warning/20 text-warning border border-warning/30 hover:bg-warning/30 transition-colors glow-amber"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Check Your Liability Now</span>
+            <span className="sm:hidden">Liability</span>
+          </button>
           <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
             <Search className="h-4 w-4" />
           </button>
