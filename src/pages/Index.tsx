@@ -1,20 +1,21 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Header } from '@/components/Header';
 import { TickerStrip } from '@/components/TickerStrip';
 import { FilterSidebar } from '@/components/FilterSidebar';
 import { DocumentFeed } from '@/components/DocumentFeed';
-import { StatsPanel } from '@/components/StatsPanel';
+import { ChangeHeatmap } from '@/components/ChangeHeatmap';
+import { ComplianceCalendar } from '@/components/ComplianceCalendar';
+import { AlertPanel } from '@/components/AlertPanel';
+import { DocumentViewer } from '@/components/DocumentViewer';
 import { AuthModal } from '@/components/AuthModal';
+import type { Database } from '@/integrations/supabase/types';
 
-const KEYBOARD_MAP: Record<string, string> = {
-  l: '/',
-  t: '/',
-  s: '/',
-  m: '/map',
-};
+type Document = Database['public']['Tables']['documents']['Row'];
 
 const Index: React.FC = () => {
   const [filters, setFilters] = useState<Record<string, string[]>>({});
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleFilterChange = useCallback((group: string, key: string) => {
     setFilters((prev) => {
@@ -26,17 +27,13 @@ const Index: React.FC = () => {
     });
   }, []);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      const key = e.key.toLowerCase();
-      if (KEYBOARD_MAP[key]) {
-        // handled at router level for navigation
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+  const handleHeatmapClick = useCallback((category: string, _start: Date, _end: Date) => {
+    setFilters(prev => ({ ...prev, category: [category] }));
+  }, []);
+
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    // Search is applied via filters — for now we pass it through
   }, []);
 
   return (
@@ -44,23 +41,45 @@ const Index: React.FC = () => {
       <Header />
       <TickerStrip />
       <AuthModal />
+      <DocumentViewer document={selectedDoc} onClose={() => setSelectedDoc(null)} />
 
       <div className="flex flex-1 overflow-hidden">
-        <FilterSidebar activeFilters={filters} onFilterChange={handleFilterChange} />
-        
-        <div className="flex-1 flex overflow-hidden">
-          {/* Main feed */}
-          <DocumentFeed filters={filters} />
+        {/* Left sidebar — filter tree + search */}
+        <FilterSidebar activeFilters={filters} onFilterChange={handleFilterChange} onSearch={handleSearch} />
 
-          {/* Stats panel */}
-          <div className="hidden lg:block w-72 border-l border-border overflow-y-auto p-3">
-            <StatsPanel />
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex flex-1 overflow-hidden">
+            {/* Live feed — left panel */}
+            <div className="flex-1 flex flex-col overflow-hidden border-r border-border">
+              <DocumentFeed filters={filters} onDocumentClick={setSelectedDoc} />
+            </div>
+
+            {/* Centre + right panels */}
+            <div className="hidden lg:flex flex-col w-[420px] overflow-hidden">
+              {/* Heatmap — centre panel */}
+              <div className="border-b border-border overflow-y-auto p-2" style={{ maxHeight: '280px' }}>
+                <ChangeHeatmap onCellClick={handleHeatmapClick} />
+              </div>
+
+              {/* Alert panel — right panel */}
+              <div className="flex-1 overflow-hidden">
+                <AlertPanel />
+              </div>
+            </div>
+          </div>
+
+          {/* Calendar — bottom panel */}
+          <div className="border-t border-border overflow-y-auto" style={{ maxHeight: '240px' }}>
+            <div className="p-2">
+              <ComplianceCalendar onDocumentClick={setSelectedDoc} />
+            </div>
           </div>
         </div>
       </div>
 
       {/* Status bar */}
-      <div className="h-6 bg-card border-t border-border flex items-center px-4 gap-6">
+      <div className="h-6 bg-card border-t border-border flex items-center px-4 gap-6 flex-shrink-0">
         <span className="text-[10px] font-mono text-primary">● LIVE</span>
         <span className="text-[10px] font-mono text-terminal-dim">
           SHORTCUTS: [L]abour [T]ax [A]lerts [C]alculator [M]ap [S]earch [K]anban
