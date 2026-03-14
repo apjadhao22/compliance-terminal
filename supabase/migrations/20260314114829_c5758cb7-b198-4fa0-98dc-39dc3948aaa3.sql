@@ -39,6 +39,12 @@ CREATE TABLE public.documents (
 ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Documents are publicly readable" ON public.documents FOR SELECT USING (true);
 
+-- Enable pgvector extension
+create extension if not exists vector;
+
+-- Add embedding column to documents table
+alter table public.documents add column if not exists embedding vector(1536);
+
 -- User profiles
 CREATE TABLE public.user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

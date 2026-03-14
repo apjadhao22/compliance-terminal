@@ -13,6 +13,9 @@ import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
 
+
+import ComplianceChatbot from './components/chatbot/ComplianceChatbot';
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -28,6 +31,7 @@ const App = () => (
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <ComplianceChatbot />
         </BrowserRouter>
       </AuthProvider>
     </TooltipProvider>
