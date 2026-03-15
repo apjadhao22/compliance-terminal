@@ -1,17 +1,23 @@
-// Healthcare sector dashboard
-import React from 'react';
-import DocumentFeed from '@/components/DocumentFeed';
+import React, { useState } from 'react';
+import { DocumentFeed } from '@/components/DocumentFeed';
+import { DocumentViewer } from '@/components/DocumentViewer';
 import SectorStatsBar from '@/components/SectorStatsBar';
+import type { Database } from '@/integrations/supabase/types';
 
-const stats = { 'Active Laws': 14, 'Pending Tasks': 2, 'Upcoming Deadlines': 1 };
+type Document = Database['public']['Tables']['documents']['Row'];
 
-const Healthcare: React.FC = () => (
-  <div className="p-6">
-    <h1 className="font-mono text-2xl mb-2">Healthcare</h1>
-    <SectorStatsBar stats={stats} />
-    {/* Pre-filtered Live Feed: Labour + Environment + Corporate */}
-    <DocumentFeed filters={{ category: ['labour', 'environment', 'corporate'] }} />
-  </div>
-);
+const CATEGORIES = ['labour', 'environment', 'corporate'];
+
+const Healthcare: React.FC = () => {
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  return (
+    <div className="p-6">
+      <h1 className="font-mono text-2xl mb-2">Healthcare</h1>
+      <SectorStatsBar categories={CATEGORIES} />
+      <DocumentFeed filters={{ category: CATEGORIES }} onDocumentClick={setSelectedDoc} />
+      <DocumentViewer document={selectedDoc} onClose={() => setSelectedDoc(null)} />
+    </div>
+  );
+};
 
 export default Healthcare;
