@@ -29,7 +29,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('user_id', userId)
         .maybeSingle();
-      if (data) setLiabilityProfile(data as LiabilityProfile);
+      if (data) setLiabilityProfile({
+          companyName: data.industry_type || '',
+          industryType: data.industry_type || '',
+          inSez: data.in_sez || false,
+          headcountBracket: data.headcount_bracket || '',
+          contractWorkerBracket: data.contract_worker_bracket || '',
+          workforceNature: data.workforce_nature ? [data.workforce_nature] : [],
+          employsWomen: data.employs_women || false,
+          hasCanteen: data.has_canteen || false,
+          states: data.states || [],
+          primaryCity: data.primary_city || '',
+          multipleLocations: data.multiple_locations || false,
+        });
       else setLiabilityProfile(null);
     }
 

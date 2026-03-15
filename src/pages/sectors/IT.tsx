@@ -1,17 +1,23 @@
-// IT/ITES sector dashboard
-import React from 'react';
-import DocumentFeed from '@/components/DocumentFeed';
+import React, { useState } from 'react';
+import { DocumentFeed } from '@/components/DocumentFeed';
+import { DocumentViewer } from '@/components/DocumentViewer';
 import SectorStatsBar from '@/components/SectorStatsBar';
+import type { Database } from '@/integrations/supabase/types';
 
-const stats = { 'Active Laws': 12, 'Pending Tasks': 2, 'Upcoming Deadlines': 1 };
+type Document = Database['public']['Tables']['documents']['Row'];
 
-const IT: React.FC = () => (
-  <div className="p-6">
-    <h1 className="font-mono text-2xl mb-2">IT / ITES</h1>
-    <SectorStatsBar stats={stats} />
-    {/* Pre-filtered Live Feed: Labour + Tax + Corporate */}
-    <DocumentFeed filters={{ category: ['labour', 'tax', 'corporate'] }} />
-  </div>
-);
+const CATEGORIES = ['labour', 'tax', 'corporate'];
+
+const IT: React.FC = () => {
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  return (
+    <div className="p-6">
+      <h1 className="font-mono text-2xl mb-2">IT / ITES</h1>
+      <SectorStatsBar categories={CATEGORIES} />
+      <DocumentFeed filters={{ category: CATEGORIES }} onDocumentClick={setSelectedDoc} />
+      <DocumentViewer document={selectedDoc} onClose={() => setSelectedDoc(null)} />
+    </div>
+  );
+};
 
 export default IT;

@@ -1,17 +1,23 @@
-// BFSI sector dashboard
-import React from 'react';
-import DocumentFeed from '@/components/DocumentFeed';
+import React, { useState } from 'react';
+import { DocumentFeed } from '@/components/DocumentFeed';
+import { DocumentViewer } from '@/components/DocumentViewer';
 import SectorStatsBar from '@/components/SectorStatsBar';
+import type { Database } from '@/integrations/supabase/types';
 
-const stats = { 'Active Laws': 13, 'Pending Tasks': 2, 'Upcoming Deadlines': 1 };
+type Document = Database['public']['Tables']['documents']['Row'];
 
-const BFSI: React.FC = () => (
-  <div className="p-6">
-    <h1 className="font-mono text-2xl mb-2">BFSI</h1>
-    <SectorStatsBar stats={stats} />
-    {/* Pre-filtered Live Feed: Corporate + Tax + Export */}
-    <DocumentFeed filters={{ category: ['corporate', 'tax', 'export'] }} />
-  </div>
-);
+const CATEGORIES = ['corporate', 'tax', 'export'];
+
+const BFSI: React.FC = () => {
+  const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  return (
+    <div className="p-6">
+      <h1 className="font-mono text-2xl mb-2">BFSI</h1>
+      <SectorStatsBar categories={CATEGORIES} />
+      <DocumentFeed filters={{ category: CATEGORIES }} onDocumentClick={setSelectedDoc} />
+      <DocumentViewer document={selectedDoc} onClose={() => setSelectedDoc(null)} />
+    </div>
+  );
+};
 
 export default BFSI;

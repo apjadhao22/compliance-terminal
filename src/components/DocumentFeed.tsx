@@ -215,7 +215,7 @@ export const DocumentFeed: React.FC<DocumentFeedProps> = ({ filters, onDocumentC
                     <span className="text-[10px] font-mono text-terminal-cyan uppercase">{doc.category}</span>
                     <span className="text-[10px] font-mono text-terminal-dim">{doc.document_type?.toUpperCase()}</span>
                     <span className="text-[10px] font-mono text-terminal-dim">[{doc.state?.replace('_', ' ').toUpperCase()}]</span>
-                    {doc.predictive_tag === 'Likely to change soon' && (
+                    {(doc as any).predictive_tag === 'Likely to change soon' && (
                       <span className="ml-1 inline-flex items-center">
                         <span className="w-2 h-2 rounded-full bg-warning animate-pulse shadow-glow-amber mr-1" title="Likely to change soon" />
                         <span className="text-[9px] font-mono text-warning">Likely to change</span>
