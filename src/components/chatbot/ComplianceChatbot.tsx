@@ -16,17 +16,16 @@ const ComplianceChatbot: React.FC = () => {
     if (!input.trim()) return;
     setLoading(true);
     setMessages((msgs) => [...msgs, { role: 'user', content: input }]);
-    // Call backend RAG API (not implemented here)
-    const res = await fetch('/api/rag-chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        query: input,
-        user: user ? { id: user.id, liabilityProfile } : null,
-      }),
+    // Call Supabase Edge Function for RAG chat
+    // @ts-ignore: supabase.functions.invoke is available in the browser client
+    const { data, error } = await window.supabase.functions.invoke('rag-chat', {
+      body: { query: input, userId: user ? user.id : null },
     });
-    const data = await res.json();
-    setMessages((msgs) => [...msgs, { role: 'assistant', content: data.answer, sources: data.sources }]);
+    if (error) {
+      setMessages((msgs) => [...msgs, { role: 'assistant', content: 'Error: ' + error.message }]);
+    } else {
+      setMessages((msgs) => [...msgs, { role: 'assistant', content: data.answer, sources: data.sources }]);
+    }
     setInput('');
     setLoading(false);
   }

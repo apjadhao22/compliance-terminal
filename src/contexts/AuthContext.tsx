@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { LiabilityProfile } from '@/lib/compliance-rules';
 
 interface AuthContextType {
   session: Session | null;
@@ -9,6 +10,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   showAuthModal: boolean;
   setShowAuthModal: (show: boolean) => void;
+  liabilityProfile: LiabilityProfile | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,12 +20,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [liabilityProfile, setLiabilityProfile] = useState<LiabilityProfile | null>(null);
 
   useEffect(() => {
+    async function fetchProfile(userId: string) {
+      const { data, error } = await supabase
+        .from('liability_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (data) setLiabilityProfile(data as LiabilityProfile);
+      else setLiabilityProfile(null);
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) fetchProfile(session.user.id);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -31,6 +45,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       setLoading(false);
       if (session) setShowAuthModal(false);
+      if (session?.user) fetchProfile(session.user.id);
+      else setLiabilityProfile(null);
     });
 
     return () => subscription.unsubscribe();
@@ -41,7 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, signOut, showAuthModal, setShowAuthModal }}>
+    <AuthContext.Provider value={{ session, user, loading, signOut, showAuthModal, setShowAuthModal, liabilityProfile }}>
       {children}
     </AuthContext.Provider>
   );
