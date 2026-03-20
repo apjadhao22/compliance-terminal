@@ -1,48 +1,30 @@
-// Supabase Edge Function: scrape-labour
-// Scraper for Ministry of Labour (labour.gov.in)
-// Phase 5 pipeline: scrape → translate → summarize → embed → tag → insert → trigger webhook
-// Do not modify previous phases
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { jinaSearch, parseJinaSearchResults, jinaFetch, runPipeline, sleep, isAlreadyScraped, CORS_HEADERS } from "../_shared/pipeline.ts";
 
-import { serve } from 'std/server';
-import { createClient } from '@supabase/supabase-js';
-import playwright from 'playwright';
+const SEARCH_QUERY = "India ministry of labour notification circular 2025";
+const SOURCE_NAME = "Ministry of Labour";
+const STATE = "central";
+const DOC_TYPE = "notification";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-async function isAlreadyScraped(url: string) {
-  const { data } = await supabase.from('documents').select('id').eq('source_url', url).maybeSingle();
-  return !!data;
-}
-
-async function pipelineInsert(doc: any) {
-  await supabase.from('documents').insert([doc]);
-}
-
-async function callEdge(path: string, body: any) {
-  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return await res.json();
-}
-
-async function scrapeLabour() {
-  const browser = await playwright.chromium.launch();
-  const page = await browser.newPage();
-  await page.goto('https://labour.gov.in/');
-  // TODO: Implement logic to fetch latest document list, parse links, fetch full text
-  // For each new document:
-  // 1. Check if already scraped
-  // 2. Fetch full text
-  // 3. Detect language & translate
-  // 4. AI summarize
-  // 5. Generate embedding
-  // 6. Auto-tag
-  // 7. Insert into documents
-  // 8. Trigger match-documents-to-profiles webhook
-  await browser.close();
-}
-
-serve(async () => {
-  await scrapeLabour();
-  return new Response(JSON.stringify({ status: 'ok' }), { headers: { 'Content-Type': 'application/json' } });
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: CORS_HEADERS });
+  try {
+    const searchMd = await jinaSearch(SEARCH_QUERY);
+    const results = parseJinaSearchResults(searchMd);
+    const seen = new Set<string>();
+    const unique = results.filter(r => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
+    const toProcess = unique.slice(0, 10);
+    let processed = 0;
+    for (const item of toProcess) {
+      if (await isAlreadyScraped(item.url)) continue;
+      let rawText = item.description || item.title;
+      try { rawText = (await jinaFetch(item.url)).slice(0, 8000); } catch (_e) {}
+      await runPipeline({ title: item.title.slice(0, 200), url: item.url, rawText, sourceName: SOURCE_NAME, state: STATE, documentType: DOC_TYPE });
+      processed++;
+      await sleep(3500);
+    }
+    return new Response(JSON.stringify({ status: "ok", processed }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+  }
 });

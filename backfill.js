@@ -1,0 +1,64 @@
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = 'https://susnynfoeufnorwapcae.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1c255bmZvZXVmbm9yd2FwY2FlIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mzk1MDkwNSwiZXhwIjoyMDg5NTI2OTA1fQ.M98bRORw2f2Lw6jLgdSh91QBEu2IoeLyDItUuU993WY';
+const summarizeUrl = 'https://susnynfoeufnorwapcae.supabase.co/functions/v1/ai-summarization';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function backfill() {
+  console.log('Fetching empty summary docs...');
+  const { data: docs, error } = await supabase
+    .from('documents')
+    .select('id, translated_text')
+    .eq('ai_summary', '');
+
+  if (error) throw error;
+  console.log(`${docs.length} docs found`);
+
+  let updated = 0;
+  for (const doc of docs) {
+    try {
+      const response = await fetch(summarizeUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: doc.translated_text }),
+      });
+      
+      const result = await response.json();
+      const summary = result.summary;
+      
+      if (!summary || !summary.summary) {
+        console.log(`⚠️  No summary for ${doc.id}`);
+        continue;
+      }
+
+      const { error: updateError } = await supabase
+        .from('documents')
+        .update({
+          ai_summary: summary.summary || '',
+          affected_industries: summary.affected_industries || [],
+          urgency: summary.urgency || 'medium',
+          impact_score: summary.impact_score || 5,
+        })
+        .eq('id', doc.id);
+
+      if (updateError) {
+        console.log(`❌ Update failed ${doc.id}:`, updateError.message);
+        continue;
+      }
+
+      updated++;
+      console.log(`✅ Updated ${updated}/${docs.length}: ${doc.id}`);
+    } catch (err) {
+      console.log(`💥 Error ${doc.id}:`, err.message);
+    }
+  }
+
+  console.log(`\n🎉 Complete: ${updated}/${docs.length} updated`);
+}
+
+backfill();

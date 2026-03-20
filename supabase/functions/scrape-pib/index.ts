@@ -1,48 +1,60 @@
-// Supabase Edge Function: scrape-pib
-// Scraper for Press Information Bureau (pib.gov.in)
-// Phase 5 pipeline: scrape → translate → summarize → embed → tag → insert → trigger webhook
-// Do not modify previous phases
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { jinaSearch, jinaFetch, runPipeline, sleep, isAlreadyScraped, CORS_HEADERS } from "../_shared/pipeline.ts";
 
-import { serve } from 'std/server';
-import { createClient } from '@supabase/supabase-js';
-import playwright from 'playwright';
+const SEARCH_QUERY = "site:pib.gov.in labour employment EPF ESI GST tax compliance wage factory 2025";
 
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-async function isAlreadyScraped(url: string) {
-  const { data } = await supabase.from('documents').select('id').eq('source_url', url).maybeSingle();
-  return !!data;
+// Parse Jina Search results format:
+// [N] Title: TITLE
+// [N] URL Source: URL
+// [N] Description: TEXT
+function parseJinaSearchResults(md: string): Array<{ title: string; url: string; description: string }> {
+  const results: Array<{ title: string; url: string; description: string }> = [];
+  // Split by result blocks — each starts with [N]
+  const blocks = md.split(/(?=\[\d+\] Title:)/);
+  for (const block of blocks) {
+    const titleMatch = /Title:\s*(.+)/i.exec(block);
+    const urlMatch = /URL Source:\s*(https?:\/\/\S+)/i.exec(block);
+    const descMatch = /Description:\s*(.+)/i.exec(block);
+    if (titleMatch && urlMatch) {
+      results.push({
+        title: titleMatch[1].trim(),
+        url: urlMatch[1].trim(),
+        description: descMatch ? descMatch[1].trim() : "",
+      });
+    }
+  }
+  return results;
 }
 
-async function pipelineInsert(doc: any) {
-  await supabase.from('documents').insert([doc]);
-}
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: CORS_HEADERS });
+  try {
+    const searchMd = await jinaSearch(SEARCH_QUERY);
+    const results = parseJinaSearchResults(searchMd);
 
-async function callEdge(path: string, body: any) {
-  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return await res.json();
-}
+    const seen = new Set<string>();
+    const unique = results.filter(r => { if (seen.has(r.url)) return false; seen.add(r.url); return true; });
+    const toProcess = unique.slice(0, 10);
+    let processed = 0;
 
-async function scrapePIB() {
-  const browser = await playwright.chromium.launch();
-  const page = await browser.newPage();
-  await page.goto('https://pib.gov.in/');
-  // TODO: Implement logic to fetch latest document list, parse links, fetch full text
-  // For each new document:
-  // 1. Check if already scraped
-  // 2. Fetch full text
-  // 3. Detect language & translate
-  // 4. AI summarize
-  // 5. Generate embedding
-  // 6. Auto-tag
-  // 7. Insert into documents
-  // 8. Trigger match-documents-to-profiles webhook
-  await browser.close();
-}
+    for (const item of toProcess) {
+      if (await isAlreadyScraped(item.url)) continue;
+      let rawText = item.description || item.title;
+      try { rawText = (await jinaFetch(item.url)).slice(0, 8000); } catch (_e) { /* use description */ }
+      await runPipeline({
+        title: item.title.slice(0, 200),
+        url: item.url,
+        rawText,
+        sourceName: "PIB",
+        state: "central",
+        documentType: "press_release",
+      });
+      processed++;
+      await sleep(3500);
+    }
 
-serve(async () => {
-  await scrapePIB();
-  return new Response(JSON.stringify({ status: 'ok' }), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ status: "ok", processed }), { headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: { ...CORS_HEADERS, "Content-Type": "application/json" } });
+  }
 });

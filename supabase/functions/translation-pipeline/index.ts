@@ -1,55 +1,86 @@
-// Supabase Edge Function: translation-pipeline
-// Phase 5: Translation Engine using Google Cloud Translation API
-// Do not modify previous phases
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-import { serve } from 'std/server';
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 
-const GOOGLE_API_KEY = Deno.env.get('VITE_GOOGLE_TRANSLATE_API_KEY')!;
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
-async function detectLanguage(text: string) {
-  const res = await fetch(`https://translation.googleapis.com/language/translate/v2/detect?key=${GOOGLE_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: text })
-  });
-  const data = await res.json();
-  return data.data.detections[0][0];
-}
-
-async function translateText(text: string, source: string, target = 'en') {
-  const res = await fetch(`https://translation.googleapis.com/language/translate/v2?key=${GOOGLE_API_KEY}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ q: text, source, target, format: 'text' })
-  });
-  const data = await res.json();
-  return data.data.translations[0].translatedText;
-}
-
-// Legal glossary override (do not translate these terms)
-const LEGAL_TERMS = [
-  'सरकारी राजपत्र', 'अधिसूचना', 'परिपत्र', 'ಸರ್ಕಾರಿ ಗೆಜೆಟ್', // Add more per language
-];
-
-function overrideLegalTerms(text: string): string {
-  for (const term of LEGAL_TERMS) {
-    text = text.replace(new RegExp(term, 'g'), term);
+function isLikelyEnglish(text: string): boolean {
+  let asciiChars = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) < 128) {
+      asciiChars++;
+    }
   }
-  return text;
+  return asciiChars / text.length > 0.90;
 }
 
-serve(async (req) => {
-  const { text } = await req.json();
-  const detection = await detectLanguage(text);
-  let translated = text;
-  let confidence = detection.confidence;
-  if (detection.language !== 'en') {
-    translated = await translateText(text, detection.language, 'en');
-    translated = overrideLegalTerms(translated);
+serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
-  return new Response(JSON.stringify({
-    detected_language: detection.language,
-    confidence,
-    translated,
-  }), { headers: { 'Content-Type': 'application/json' } });
+
+  try {
+    const { text } = await req.json();
+
+    if (!text || typeof text !== "string") {
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid 'text' field in request body" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (isLikelyEnglish(text)) {
+      return new Response(
+        JSON.stringify({ translated: text, detected_language: "en", skipped: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://compliance-terminal.app",
+        "X-Title": "ComplianceTerminal",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "qwen/qwen3-4b:free",
+        messages: [
+          {
+            role: "system",
+            content: "You are a translation assistant. Translate the user's text to English. Return ONLY the translated text with no commentary, explanations, or additional text.",
+          },
+          {
+            role: "user",
+            content: text,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      return new Response(
+        JSON.stringify({ error: "OpenRouter API error", details: errorBody }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const data = await response.json();
+    const translated = data.choices?.[0]?.message?.content?.trim() ?? "";
+
+    return new Response(
+      JSON.stringify({ translated, detected_language: "auto-detected" }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "Internal server error", details: String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 });
